@@ -226,6 +226,9 @@ function [x, istop, itn, normr, normAr, normA, condA, normx]...
   istop  = 0;
   ctol   = 0;         if conlim > 0, ctol = 1/conlim; end;
   normr  = beta;
+  normx  = 0;
+  normA  = sqrt(normA2);
+  condA  = 0;
 
   % Exit if b=0 or A'b = 0.
 
