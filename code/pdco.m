@@ -136,10 +136,11 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
 %    http://www.stanford.edu/~saunders/
 %
 % CONTRIBUTORS:
-%    (BK ) Byunggyoo Kim, Samsung, Seoul, Korea     (hightree@samsung.co.kr)
-%    (CMM) Chris Maes, ICME, Stanford University    (cmaes@stanford.edu)
-%    (SA ) Santiago Akle, ICME, Stanford University (akle@stanford.edu)
-%    (MZ ) Matt Zahr, ICME, Stanford University     (mzahr@stanford.edu)
+%    (BK ) Byunggyoo Kim, Samsung, Seoul, Korea      (hightree@samsung.co.kr)
+%    (CMM) Chris Maes, ICME, Stanford University     (cmaes@stanford.edu)
+%    (SA ) Santiago Akle, ICME, Stanford University  (akle@stanford.edu)
+%    (MZ ) Matt Zahr, ICME, Stanford University      (mzahr@stanford.edu)
+%    (AV ) Aekaansh Verma, ICME, Stanford University (aekaansh@stanford.edu)
 %
 % DEVELOPMENT:
 % 20 Jun 1997: Original version of pdsco.m derived from pdlp0.m.
@@ -213,6 +214,8 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
 % 13 Jun 2013: (MZ) Added support for Method 22 for CME 338 project.
 % 22 Nov 2013: (MAS) Various things polished up.  Method 22 made available.
 % 23 Nov 2013: Restored options.backtrack.
+% 08 Jun 2018: (AV) Added options 11-14 (analogous to 1-4) for computing
+%              primal step dx before dual step dy
 %-----------------------------------------------------------------------
 
   PriLev   = options.Print;
@@ -223,13 +226,14 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
 
   if PriLev > 0
     fprintf('\n   --------------------------------------------------------')
-    fprintf('\n   pdco.m                            Version of 23 Nov 2013')
+    fprintf('\n   pdco.m                      Version pdco5 of 15 Jun 2018')
     fprintf('\n   Primal-dual barrier method to minimize a convex function')
     fprintf('\n   subject to linear constraints Ax + r = b,  bl <= x <= bu')
     fprintf('\n                                                           ')
     fprintf('\n   Michael Saunders       SOL and ICME, Stanford University')
     fprintf('\n   Contributors:     Byunggyoo Kim (SOL), Chris Maes (ICME)')
     fprintf('\n                     Santiago Akle (ICME), Matt Zahr (ICME)')
+    fprintf('\n                     Aekaansh Verma (ICME)                 ')
     fprintf('\n   --------------------------------------------------------\n')
   end
 
@@ -313,8 +317,11 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
   z0min     = options.z0min;
   mu0       = options.mu0;
   backtrack = options.backtrack;
-  Method    = options.Method;     % 1=Cholesky  2=QR  3=LSMR  4=MINRES
+  Method    = options.Method;     % Compute dy before dx : 
+                                  % 1= Cholesky  2= QR  3= LSMR  4= MINRES
                                   % 21=SQD(LU), 22=SQD(MA57)
+                                  % Compute dx before dy :
+                                  % 11=Cholesky  12=QR  13=LSMR  14=MINRES
   itnlim    = options.LSMRMaxIter * min(m,n);
   atol1     = options.LSMRatol1;  % Initial  atol
   atol2     = options.LSMRatol2;  % Smallest atol, unless atol1 is smaller
@@ -354,8 +361,12 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
     fprintf('\nconlim   = %8.1e     itnlim   = %8g'  , conlim, itnlim)
     fprintf(                  '      show    = %8g'  , show )
 
-    fprintf('\n\nMethod   = %8g     (1=chol  2=QR  3=LSMR  4=MINRES  21=SQD(LU)  22=SQD(MA57))\n', Method)
-
+    fprintf('\n\nMethod   = %8g     (1 or 11=chol  2 or 12=QR  3 or 13=LSMR  4 or 14=MINRES 21=SQD(LU)  22=SQD(MA57))\n', Method)
+    if(Method<=5)
+        fprintf('Eliminating dy before dx  \n ');
+    elseif(Method<=15)
+        fprintf('Eliminating dx before dy  \n ');        
+    end
     if wait
       fprintf('\nReview parameters... then type "return"\n')
       keyboard
@@ -376,32 +387,32 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
   end
   
   if operator
-    if Method==3 || Method ==4 %|| Method ==5
+    if Method==3 || Method ==4 || Method == 13 || Method == 14%|| Method ==5
       % Relax
     else
-      fprintf(['\n\n When A is an operator, we have to use Method = 3 or 4'])
+      fprintf(['\n\n When A is an operator, we have to use Method = 3,4,13 or 14'])
       Method = 3;
     end
   end
 
-  diagHess   = Method<=5;
+  diagHess   = Method<=15;
   squareHess = Method==21 || Method==22;
 
   switch Method
-  case 1
+  case {1,11}
     solver  = '  Chol';  head3 = '     Chol';
-  case 2
+  case {2,12}
     solver  = '    QR';  head3 = '       QR';
-  case 3
+  case {3,13}
     solver  = '  LSMR';  head3 = '  atol   LSMR Inexact';
-  case 4    
+  case {4,14}    
     solver  = 'MINRES';  head3 = '  atol MINRES Inexact'; 
 % case 5    
 %   solver  = '   PCG';  head3 = '  atol    PCG Inexact'; 
   case {21, 22}
     solver  = '   SQD';  head3 = '      SQD';
   otherwise
-    error('Method must be 1, 2, 3, 4 or 21')
+    error('Method must be 1, 2, 3, 4, 11, 12, 13, 14, or 21')
   end
     
   %---------------------------------------------------------------------
@@ -791,7 +802,193 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
       end
     end % if Method<=5
 
+    %------------------------------------------------------------
+    % Options = 11-15 : Compute dx before dy
+    %------------------------------------------------------------
+    if Method<=15 && Method >=11  %%% diagHess
+    %-----------------------------------------------------------------
+    %  Solve (*) for dx 
+    %-----------------------------------------------------------------
+    %  Define a damped Newton iteration for solving f = 0,
+    %  keeping  x1, x2, z1, z2 > 0.  We eliminate dx1, dx2, dz1, dz2
+    %  to obtain the system
+    %
+    %  [-H2  A' ] [dx] = [w ],   H2 = H + D1^2 + X1inv Z1 + X2inv Z2,
+    %  [ A  D2^2] [dy] = [r1]    w  = r2 - X1inv(cL + Z1 rL)
+    %                                    + X2inv(cU + Z2 rU),
+    %
+    %  which is equivalent to the least-squares problem
+    %
+    %     min || [ D2inv A]dx  -  [  D2inv r1   ] ||,   D = H2^{-1/2}.     (*)
+    %         || [  D' ]          [ - Dinv' w   ] ||
+    %-----------------------------------------------------------------
+  
+    % For these methods to work, H must be diagonal 
+    H(low)  = H(low) + z1(low)./x1(low);
+    H(upp)  = H(upp) + z2(upp)./x2(upp);
+    w       = r2;
+    w(low)  = w(low) - (cL(low) + z1(low).*rL(low))./x1(low);
+    w(upp)  = w(upp) + (cU(upp) + z2(upp).*rU(upp))./x2(upp);
 
+    % H now has H_2 within it
+    % Note that H and D differ from the definition in Method <= 5  
+    H(fix) = 0;
+    D      = sqrt(H);
+    pdDDD1 = D;            
+      
+    if Method==11
+
+      % --------------------------------------------------------------
+      % Use chol to get dx
+      % -------------------
+               
+      D2inv2A   = sparse( 1:m, 1:m, (1./d2).^2 , m, m )*pdMat;
+      ADDA = D2inv2A'*pdMat + sparse( 1:n, 1:n, H, n, n );
+
+      if PDitns==1, P = symamd(ADDA); end % Do ordering only once.
+
+      [R,indef] = chol(ADDA(P,P));
+      if indef
+        fprintf('\n\n   chol says A''D^-2A is not pos def')
+        fprintf('\n   Use bigger d2, or set options.Method = 2 or 3')
+        inform = 4;
+        break
+      end
+
+      % dx = ADDA \ rhs;
+      rhs   = -w + D2inv2A'*r1;
+      dx    = R \ (R'\rhs(P));
+      dx(P) = dx;
+        
+        
+    elseif Method==12
+      % --------------------------------------------------------------
+      % Use QR to get dx
+      % --------------------------------------------------------------
+      D2A = sparse( 1:m, 1:m, (1./d2), m, m )*(pdMat)  ;
+      if PDitns==1, P = colamd(D2A); end % Do ordering only once.
+        
+      D2A = [ D2A ; spdiags(D,0,n,n) ]; 
+      rhs = [ r1./d2 ; -w./D ];
+                
+      % dx = D2A \ rhs;
+
+      [rhs,R]= qr(D2A(:,P),rhs,0); 
+      dx = R \ rhs ; 
+      dx(P) = dx;
+
+
+    elseif Method==13
+      % --------------------------------------------------------------
+      % Method=13.  Use LSMR (iterative solve) to get dx
+      % --------------------------------------------------------------
+
+      rhs = [ r1./d2 ; -w./D ];
+      damp   = 0;
+ 
+      if explicitA  % A is a sparse matrix.
+                     % Construct diagonal preconditioner for LSMR
+         precon = true;
+         D2invA   = sparse( 1:m, 1:m, (1./d2) , m, m )*pdMat;
+         D2invA = D2invA.^2;
+         wD = sum(D2invA,1) ;  % Sum of sqrs of each col of D2invA
+         wD = sqrt(full(wD'+H)); %(Dense)
+         pdDDD3 = 1./wD;
+         clear D2invA wD
+
+       else          % A is an operator. Can't use a preconditioner
+         precon = false;  
+         pdDDD3 = [];
+       end
+
+         
+       mat_lsmr_handle = @(x,mode) ...
+           pdxxxlsmrmat_13(mode, m, n, x, pdMat, Method, precon, pdDDD1, d2, pdDDD3);
+ 
+       [dx, istop_lsmr, itncg, normr, normAr, normA, condA, normx] ...
+           = lsmr(mat_lsmr_handle, rhs, damp, atol, btol, conlim,  ...
+                  itnlim, [], show);  % dont set localSize
+
+
+       if precon, dx = pdDDD3 .* dx; end
+ 
+       if istop_lsmr==3 || istop_lsmr==6 || istop_lsmr==7   % conlim or conda=1/eps or itnlim
+         fprintf('\n    LSMR stopped early:  istop = %3d', istop_lsmr)
+       end
+ 
+       atolold   = atol;
+       r3ratio   = normAr/fmerit;
+       CGitns    = CGitns + itncg;
+       
+    elseif Method ==14
+
+      % --------------------------------------------------------------
+      % Method=14.  Use MINRES (iterative solve) to get dx.
+      % --------------------------------------------------------------
+       
+       rhs    = pdxxxmat(pdMat,2,m,n,r1./(d2.^2)) - w;
+       damp   = 0;
+       check  = 0;
+       mat_minres_handle = @(x) pdxxxminresmat_14( m, n, x, pdMat, Method, H, d2 );
+       
+       if explicitA  % A is a sparse matrix.
+                     % Construct diagonal preconditioner for MINRES
+           precon = true;
+           AD     = pdMat*diag(sparse(D));
+           D2invA   = sparse( 1:m, 1:m, (1./d2) , m, m )*pdMat;
+           D2invA = D2invA.^2;
+           wD = sum(D2invA,1) ;  % Sum of sqrs of each col of D2invA
+           wD = sqrt(full(wD'+H)); %(Dense)
+           pdDDD3 = 1./wD;
+           pdDDD3 = @(x) (pdDDD3.*x); % Cast pdDDD3 as an operator 
+           clear D2invA wD             
+       else
+           precon = false;
+           pdDDD3 = [];
+       end
+ 
+       [dx, istop_minres, itnm, normr, normAr, normA, condA, normx] = ...
+           minres( mat_minres_handle, rhs, pdDDD3, damp, show, check, itnlim, atol );
+ 
+       if istop_minres==-1 || istop_minres==5 || istop_minres==6   % conlim or itnlim
+           fprintf('\n    MINRES stopped early:  istop = %3d', istop_minres)
+       end
+ 
+       atolold = atol;
+       r3ratio = normr/fmerit; 
+       CGitns  = CGitns + itnm;
+
+    elseif Method==15
+      % --------------------------------------------------------------
+      % Method=5.  Use PCG (iterative solve) to get dy.
+      % --------------------------------------------------------------
+      error('PCG not implemented yet')
+
+    end % computation of dx
+      
+    % dx is now known.  Get dy, dx1, dx2, dz1, dz2.
+
+    grad      =   pdxxxmat( pdMat,1,m,n,dx );  % grad = Adx
+    grad(fix) =   0;    % Is this needed?      % grad is a work vector
+
+    dy        =  (r1 - grad)./(d2.^2);
+    dx1(low)  = - rL(low) + dx(low);
+    dx2(upp)  = - rU(upp) - dx(upp);
+    dz1(low)  =  (cL(low) - z1(low).*dx1(low)) ./ x1(low);
+    dz2(upp)  =  (cU(upp) - z2(upp).*dx2(upp)) ./ x2(upp);
+    
+    % See if atol and btol need to be reduced.
+
+    if Method==13 || Method==14 || Method==15
+       if atol > atolmin
+          if r3ratio >= 0.001     % Accept dx but make next one more accurate.
+             atol = atol*0.1;
+          end
+       end
+    end
+    
+    end % if 11<=Method<=15
+    
     if Method==21 || Method==22
       % ---------------------------------------------------------
       % Use SQD method to get dy and dx 
@@ -1004,15 +1201,15 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
       end
       fprintf([str1 str2 str3 str4 str5])
 
-      if     Method== 1
+      if     Method== 1 || Method== 11
         if PDitns==1, fprintf(' %8g', nnz(R)); end
-      elseif Method== 2
+      elseif Method== 2 || Method== 12
         if PDitns==1, fprintf(' %8g', nnz(R)); end
-      elseif Method== 3
+      elseif Method== 3 || Method== 13
         fprintf(' %5.1f%7g%7.3f', log10(atolold), itncg, r3ratio)
-      elseif Method== 4
+      elseif Method== 4 || Method== 14
         fprintf(' %5.1f%7g%7.3f', log10(atolold), itnm, r3ratio)
-      elseif Method== 5
+      elseif Method== 5 || Method== 15
         fprintf(' %5.1f%7g%7.3f', log10(atolold), itnm, r3ratio)
  
       elseif Method==21
@@ -1310,6 +1507,68 @@ function y = pdxxxlsmrmat( mode, m, n, x, pdMat, Method, ...
 %-----------------------------------------------------------------------
 
 
+
+function y = pdxxxlsmrmat_13( mode, m, n, x, pdMat, Method, ...
+                           precon, pdDDD1, d2, pdDDD3 )
+
+% AV: Modified version of pdxxxlsmrmat for solving dx before dy                        
+%
+% pdxxxlsmrmat_13 is required by pdco.m when Method = 13.
+% It forms Mx or M'x for some operator M that depends on Method below.
+%
+% m and n  are the dimensions of the LS problem that lsmr is solving
+% (really n+m and n in terms of the m x n matrix A in pdco).
+%
+% pdMat is pdco's pdMat (defining A).
+%
+% rw contains parameters [explicitA Method LSdamp]
+% from pdco.m to say which least-squares subproblem is being solved.
+%
+% pdDDD1 and pdDDD3 provide diagonal matrices for each value of Method.
+
+%-----------------------------------------------------------------------
+% 17 Mar 1998: First version to go with pdsco.m and lsqr.m.
+% 01 Apr 1998: global pdDDD1 pdDDD3 now used for efficiency.
+% 11 Feb 2000: Added diagonal preconditioning for LSQR, solving for dy.
+% 14 Dec 2000: Added diagonal preconditioning for LSQR, solving for dx.
+% 12 Feb 2001: Included in pdco.m as private function.
+%              Specialized to allow only solving for dy.
+% 03 Oct 2002: First version to go with pdco.m with general H2 and D2.
+% 16 Oct 2002: pdMat is now the user's pdMat.
+% 23 Apr 2008: (CMM) Added extra arguments Method, precon and
+%              pdDDD1, pdDDD2, pdDDD3. pdDDD[123] are no longer
+%              global variables. 
+% 03 Apr 2012: Renamed to pdxxxlsmrmat.
+%              Renamed nlsqr to n and mlsqr to m
+% 13 Jun 2018: Extension to primal direction computation before dual
+%              direction (pdxxxlsmrmat_13)
+%-----------------------------------------------------------------------
+
+  if Method==13
+    % The operator M is [ D2inv A ; D' ].
+    if mode==1
+      if precon, x = pdDDD3.*x; end
+      t = pdxxxmat( pdMat, 1, m, n, x );   % Ask 'aprod' to form t = A x.
+      y = [ (t./d2); (pdDDD1.*x) ];  % pdDDD1 contains D
+
+    else
+      t = x(1:m)./d2;
+      y = pdxxxmat( pdMat,2, m, n, t );   % Ask 'aprod' to form y = A't.
+      
+      y = y + x(m+1:n+m).*pdDDD1;
+      if precon, y = pdDDD3.*y; end
+%       size(x)
+%       size(y)
+    end
+
+  else
+    error('Error in pdxxxlsmrmat_13: Only Method = 13 is allowed at present')
+  end
+%-----------------------------------------------------------------------
+% End private function pdxxxlsmrmat_13
+%-----------------------------------------------------------------------
+
+
 function y = pdxxxminresmat( m, n, x, pdMat, Method, H, d2 )
 
 % pdxxxminresmat is required by pdco.m when Method=4.
@@ -1332,6 +1591,32 @@ function y = pdxxxminresmat( m, n, x, pdMat, Method, H, d2 )
 %-----------------------------------------------------------------------
 % End private function pdxxxminresmat
 %-----------------------------------------------------------------------
+
+function y = pdxxxminresmat_14( m, n, x, pdMat, Method, H, d2 )
+
+% pdxxxminresmat is required by pdco.m when Method=14.
+% It forms y=Mx or y=M'x for the operator M = A' D2^-2 A + H.
+% m and n are the dimensions of the matrix A.
+% pdMat is pdco's pdMat.
+
+%-----------------------------------------------------------------------
+% 04 Apr 2012: First version to go with pdco.m and minres.m.
+% 12 Jun 2018: Modified pdxxxminresmat for primal step (dx) elimination 
+%-----------------------------------------------------------------------
+
+  if Method==14  % The operator M is [ A' D2^-2 A + H ].
+      t = pdxxxmat( pdMat, 1, m, n, x );   % Ask 'aprod' to form t = Ax.
+      t = t./(d2.^2);
+      y = pdxxxmat( pdMat, 2, m, n, t );   %Ask 'aprod' to form y = A' t;
+      y = y + H.*x;
+  else
+      error('Error in pdxxxminresmat: Only Method 14 is allowed at present')
+  end
+%-----------------------------------------------------------------------
+% End private function pdxxxminresmat_14
+%-----------------------------------------------------------------------
+
+
 
 
 function y = pdxxxmat( pdMat, mode, m, n, x )
