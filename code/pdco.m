@@ -1601,7 +1601,8 @@ function y = pdxxxminresmat_14( m, n, x, pdMat, Method, H, d2 )
 
 %-----------------------------------------------------------------------
 % 04 Apr 2012: First version to go with pdco.m and minres.m.
-% 12 Jun 2018: Modified pdxxxminresmat for primal step (dx) elimination 
+% 12 Jun 2018: (AV) Modified pdxxxminresmat_14 for primal step (dx) 
+%              elimination 
 %-----------------------------------------------------------------------
 
   if Method==14  % The operator M is [ A' D2^-2 A + H ].
