@@ -140,7 +140,7 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
 %    (CMM) Chris Maes, ICME, Stanford University     (cmaes@stanford.edu)
 %    (SA ) Santiago Akle, ICME, Stanford University  (akle@stanford.edu)
 %    (MZ ) Matt Zahr, ICME, Stanford University      (mzahr@stanford.edu)
-%    (AV ) Aekaansh Verma, ICME, Stanford University (aekaansh@stanford.edu)
+%    (AV ) Aekaansh Verma, ME, Stanford University   (aekaansh@stanford.edu)
 %
 % DEVELOPMENT:
 % 20 Jun 1997: Original version of pdsco.m derived from pdlp0.m.
@@ -233,7 +233,7 @@ function [x,y,z,inform,PDitns,CGitns,time] = ...
     fprintf('\n   Michael Saunders       SOL and ICME, Stanford University')
     fprintf('\n   Contributors:     Byunggyoo Kim (SOL), Chris Maes (ICME)')
     fprintf('\n                     Santiago Akle (ICME), Matt Zahr (ICME)')
-    fprintf('\n                     Aekaansh Verma (ICME)                 ')
+    fprintf('\n                     Aekaansh Verma (ME)                   ')
     fprintf('\n   --------------------------------------------------------\n')
   end
 
