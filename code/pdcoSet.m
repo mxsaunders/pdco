@@ -53,9 +53,10 @@ function options = pdcoSet(opts)
 %     3       dy      LSMR on least-squares problem                     Yes
 %     4       dy      MINRES                                            Yes
 %
-%    11       dx      Sparse Cholesky on (D A'A D  + D2^2 I).           No
-%    12       dx      Sparse QR on corresponding least-squares problem  No
-%    13       dx      LSQR on least-squares problem                     No
+%    11       dx      Sparse Cholesky on (A' D^-2 A  + D^2 I).          Yes
+%    12       dx      Sparse QR on corresponding least-squares problem  Yes
+%    13       dx      LSMR on least-squares problem                     Yes
+%    14       dx      MINRES                                            Yes
 %
 %    21    dx,dy      Sparse LU on 2x2 KKT-type system                  Yes
 %    22    dx,dy      Sparse indefinite LDL' on 2x2 KKT-type system     Yes
