@@ -166,7 +166,9 @@ function [x, istop, itn, normr, normAr, normA, condA, normx]...
 
   if show
     fprintf('\n\nLSMR            Least-squares solution of  Ax = b')
-    fprintf('\nVersion 1.11                          09 Jun 2010')
+  % fprintf('\nVersion 1.11                          09 Jun 2010')
+  % fprintf('\nVersion 1.12                          02 Dec 2011')
+    fprintf('\nVersion 1.13                          19 Jun 2018')
     fprintf('\nThe matrix A has %8g rows  and %8g cols', m,n)
     fprintf('\nlambda = %16.10e', lambda )
     fprintf('\natol   = %8.2e               conlim = %8.2e', atol,conlim)
